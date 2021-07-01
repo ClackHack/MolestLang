@@ -1,0 +1,18 @@
+data 0;
+"Hello World";
+close;
+
+instruct 0;
+#Print Hello World
+mova data 0;
+write("NO FUCKING WAY\n");
+print read();
+write(3);
+print 5+5*read();
+mov instruct 1;
+close;
+
+instruct 1;
+print "This is the end of the program";
+finish;
+close;
