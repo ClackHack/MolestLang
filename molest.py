@@ -1,6 +1,8 @@
 import random
 #from typing import type_check_only
 
+#LANGUAGE=["data","instruct","close","finish","mov","mova","print"]
+LANGUAGE=["data","instruct","close","finish","mov","mova",'print']
 TT_INT="TT_INT"
 TT_FLOAT="FLOAT"
 TT_PLUS="PLUS"
@@ -14,7 +16,7 @@ TT_EOF="EOF"
 TT_KEYWORD="KEYWORD"
 TT_IDENTIFIER="IDENTIFIER"
 TT_EQ="EQ"
-KEYWORDS=["data","and","or","not", "if","then", "instruct","end",'close',"finish","print",'mov','mova']
+KEYWORDS=[LANGUAGE[0],"and","or","not", "if","then", LANGUAGE[1],"end",LANGUAGE[2],LANGUAGE[3],LANGUAGE[6],LANGUAGE[4],LANGUAGE[5]]
 TT_POW="POW"
 TT_EE = "EE"
 TT_NE="NE"
@@ -269,6 +271,7 @@ class Noderize:
 		self.lines=[]
 	def createLines(self):
 		temp = []
+		
 		for i in self.tokens:
 			if i.type==TT_NEWLINE:
 				if temp:
@@ -294,6 +297,7 @@ class Executor:
 	def visit(self):
 		#print(TAPE.index)
 		nodes=Noderize(TAPE.get())
+		#print("\nNODE TOKENS",nodes.tokens, TAPE.index,TAPE.pointer)
 		nodes.createLines()
 		#print(nodes.lines)
 
@@ -303,13 +307,13 @@ class Executor:
 		for i in nodes.lines:
 
 			lineIndex=0
-			if i[0].type==TT_KEYWORD and i[0].value=="finish":
+			if i[0].type==TT_KEYWORD and i[0].value==LANGUAGE[3]:
 				return True
-			elif i[0].type==TT_KEYWORD and i[0].value=="mov":
+			elif i[0].type==TT_KEYWORD and i[0].value==LANGUAGE[4]:
 				self.move(i,lineIndex)
-			elif i[0].type==TT_KEYWORD and i[0].value=="mova":
+			elif i[0].type==TT_KEYWORD and i[0].value==LANGUAGE[5]:
 				self.moveAbsolute(i,lineIndex)
-			elif i[0].type==TT_KEYWORD and i[0].value=="print":
+			elif i[0].type==TT_KEYWORD and i[0].value==LANGUAGE[6]:
 				self.print(i,lineIndex)
 			else:
 				self.assess(i)
@@ -317,9 +321,12 @@ class Executor:
 
 	def move(self,line,lineIndex):
 		lineIndex+=1
-		if line[lineIndex].type != TT_KEYWORD or not line[lineIndex].value in ("data","instruct"):
+		if line[lineIndex].type != TT_KEYWORD or not line[lineIndex].value in (LANGUAGE[0],LANGUAGE[1]):
 			return Error("Type Error","Expected tape identifier")
-		TAPE.pointer=line[lineIndex].value[0]
+		if line[lineIndex].value==LANGUAGE[1]:
+			TAPE.pointer="i"
+		elif line[lineIndex].value==LANGUAGE[0]:
+			TAPE.pointer="d"
 		lineIndex+=1
 		if line[lineIndex].type != TT_INT:
 			return Error("Type Error","Expected tape index")
@@ -327,9 +334,12 @@ class Executor:
 	def moveAbsolute(self,line,lineIndex):
 		lineIndex+=1
 		#print("mopving")
-		if line[lineIndex].type != TT_KEYWORD or not line[lineIndex].value in ("data","instruct"):
+		if line[lineIndex].type != TT_KEYWORD or not line[lineIndex].value in (LANGUAGE[0],LANGUAGE[1]):
 			return Error("Type Error","Expected tape identifier")
-		TAPE.pointer=line[lineIndex].value[0]
+		if line[lineIndex].value==LANGUAGE[1]:
+			TAPE.pointer="i"
+		elif line[lineIndex].value==LANGUAGE[0]:
+			TAPE.pointer="d"
 		lineIndex+=1
 		if line[lineIndex].type != TT_INT:
 			return Error("Type Error","Expected tape index")
@@ -454,7 +464,7 @@ class Executor:
 			if self.tokens[index].type==TT_EOF:
 				break
 			#print(self.tokens[index])
-			if not self.tokens[index].value in ["data",'instruct'] and self.tokens[index].type==TT_KEYWORD:
+			if not self.tokens[index].value in [LANGUAGE[0],LANGUAGE[1]] and self.tokens[index].type==TT_KEYWORD:
 				return Error("TypeError","Expected tape identifier")
 			tapeIdentifier=self.tokens[index].value[0]
 			index+=1
@@ -466,7 +476,7 @@ class Executor:
 			while 1:
 				if self.tokens[index]==TT_EOF:
 					return Error("EOF Error","Reached unexpected EOF while parsing")
-				if self.tokens[index].type==TT_KEYWORD and self.tokens[index].value == "close":
+				if self.tokens[index].type==TT_KEYWORD and self.tokens[index].value == LANGUAGE[2]:
 					index+=1
 					break
 				tapeBody.append(self.tokens[index])
