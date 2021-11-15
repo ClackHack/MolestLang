@@ -1,0 +1,27 @@
+data 0;
+#Seed
+2;
+close;
+
+data 1;
+#Roof
+500;
+close;
+
+instruct 0;
+mova data 0;
+let x = read();
+mova data 1;
+let roof = read();
+print x;
+print "\n";
+let w = x*x;
+mova data 0;
+write(w);
+let pos = w > roof;
+mova instruct pos;
+close;
+
+instruct 1;
+finish;
+close;

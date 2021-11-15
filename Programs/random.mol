@@ -1,0 +1,54 @@
+#Output
+data 0;
+0;
+close;
+
+#seed
+data 1;
+13;
+close;
+
+#Random Generator
+instruct 0;
+let FINAL_MOD = 2;
+let GEN_MOD = 9973;
+let A = 53;
+let B = 17;
+mova data 1;
+let seed = read();
+#print "Seed=";
+#print seed;
+let seed = seed * A + B;
+let seed = seed % GEN_MOD;
+write(seed);
+mova data 0;
+let out = seed % FINAL_MOD;
+#print out;
+write(out);
+mova instruct 1;
+close;
+
+#count
+data 2;
+0;
+close;
+
+#Testing
+instruct 1;
+mova data 2;
+let count = read() + 1;
+write(count);
+let pos = count > 14;
+#print pos;
+let pos = pos * 2;
+#print pos;
+mova data 0;
+print read();
+print "\n";
+mova instruct pos;
+close;
+
+instruct 2;
+print "Finished";
+finish;
+close;

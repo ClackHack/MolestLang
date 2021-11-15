@@ -2,7 +2,7 @@ import random
 #from typing import type_check_only
 
 #LANGUAGE=["data","instruct","close","finish","mov","mova","print"]
-LANGUAGE=["data","instruct","close","finish","mov","mova",'print']
+LANGUAGE=["data","instruct","close","finish","mov","mova",'print','let']
 TT_INT="TT_INT"
 TT_FLOAT="FLOAT"
 TT_PLUS="PLUS"
@@ -16,7 +16,7 @@ TT_EOF="EOF"
 TT_KEYWORD="KEYWORD"
 TT_IDENTIFIER="IDENTIFIER"
 TT_EQ="EQ"
-KEYWORDS=[LANGUAGE[0],"and","or","not", "if","then", LANGUAGE[1],"end",LANGUAGE[2],LANGUAGE[3],LANGUAGE[6],LANGUAGE[4],LANGUAGE[5]]
+KEYWORDS=[LANGUAGE[0],"and","or","not", "if","then", LANGUAGE[1],"end",LANGUAGE[2],LANGUAGE[3],LANGUAGE[6],LANGUAGE[4],LANGUAGE[5],LANGUAGE[7]]
 TT_POW="POW"
 TT_EE = "EE"
 TT_NE="NE"
@@ -56,7 +56,15 @@ class Token:
 		if self.value != None: return f"{self.type}:{self.value}"
 		return f"{self.type}"
 
-
+def tokenize(value):
+	if type(value)==Token:
+		return value
+	if type(value)==int:
+		return Token(TT_INT,value)
+	elif type(value)==str:
+		return Token(TT_STRING,value)
+	else:
+		return Token("UNKNOWN",value)
 class Position:
 	def __init__(self,index,ln,cn,fn,ftxt):
 		self.index=index
@@ -241,22 +249,27 @@ class Table:
 class SymbolTable:
 	def __init__(self,parent=None):
 		self.symbols={}
-		
-	def get(self,name):
+		self.parent=parent
+	def get(self,name,immediate=False):
 		value=self.symbols.get(name,None)
+		if value==None and self.parent != None and not immediate:
+			return self.parent.get(name)
 		return value
 	def set(self,name,value):
 		self.symbols[name]=value
 	def remove(self,name):
 		del self.symbols[name]
 def taperead(params):
+	#print("read")
 	block= TAPE.get()
 	for i in block:
+		i=tokenize(i)
 		if i.type==TT_NEWLINE:
 			pass
 		elif i.type==TT_RSQUARE:
 			pass
 		else:
+			#print("Read",i,type(i))
 			return i
 def tapewrite(params):
 	#print("Write Called")
@@ -271,8 +284,10 @@ class Noderize:
 		self.lines=[]
 	def createLines(self):
 		temp = []
-		
+		#print(self.tokens)
 		for i in self.tokens:
+			#if type(i) == int:
+				#temp.append(Token(TT_INT,int(i),0,1))
 			if i.type==TT_NEWLINE:
 				if temp:
 					self.lines.append(temp)
@@ -293,9 +308,11 @@ class Call:
 class Executor:
 	def __init__(self,tokens):
 		self.tokens=tokens
-
+		self.subcontext=SymbolTable(BUILTIN)
+		self.lastline = []
 	def visit(self):
 		#print(TAPE.index)
+		self.subcontext=tapesymbols = SymbolTable(BUILTIN)
 		nodes=Noderize(TAPE.get())
 		#print("\nNODE TOKENS",nodes.tokens, TAPE.index,TAPE.pointer)
 		nodes.createLines()
@@ -305,18 +322,22 @@ class Executor:
 		# High Level Calls
 		#
 		for i in nodes.lines:
-
+			self.lastline = i
 			lineIndex=0
 			if i[0].type==TT_KEYWORD and i[0].value==LANGUAGE[3]:
 				return True
 			elif i[0].type==TT_KEYWORD and i[0].value==LANGUAGE[4]:
-				self.move(i,lineIndex)
+				o=self.move(i,lineIndex)
 			elif i[0].type==TT_KEYWORD and i[0].value==LANGUAGE[5]:
-				self.moveAbsolute(i,lineIndex)
+				o=self.moveAbsolute(i,lineIndex)
 			elif i[0].type==TT_KEYWORD and i[0].value==LANGUAGE[6]:
-				self.print(i,lineIndex)
+				o=self.print(i,lineIndex)
+			elif i[0].type==TT_KEYWORD and i[0].value==LANGUAGE[7]:
+				o=self.assign(i,lineIndex,tapesymbols)
 			else:
-				self.assess(i)
+				o=self.assess(i)
+			if type(o)==Error:
+				return o
 		return False
 
 	def move(self,line,lineIndex):
@@ -341,34 +362,70 @@ class Executor:
 		elif line[lineIndex].value==LANGUAGE[0]:
 			TAPE.pointer="d"
 		lineIndex+=1
-		if line[lineIndex].type != TT_INT:
+		#if line[lineIndex].type != TT_INT:
+			#return Error("Type Error","Expected tape index")
+		#TAPE.index = line[lineIndex].value
+		ind = tokenize(self.assess(line[lineIndex:]))
+		#print(ind,line,line[lineIndex:])
+		if ind.type != TT_INT:
 			return Error("Type Error","Expected tape index")
-		TAPE.index = line[lineIndex].value
+		TAPE.index = ind.value
 	def print(self,line,lineIndex):
 		lineIndex+=1
 		out=self.assess(line[lineIndex:])
 		if type(out)==Error:
 			return out
 		print(out,end="")
-
+	def assign(self,line,lineIndex,symbols):
+		lineIndex+=1
+		if line[lineIndex].type != TT_IDENTIFIER:
+			return Error("Type Error","Expected Identifier")
+		name=line[lineIndex].value
+		lineIndex+=1
+		if line[lineIndex].type != TT_EQ:
+			return Error("Type Error","Expected Identifier")
+		#print("Assign",name)
+		value = self.assess(line[lineIndex+1:])
+		
+		#print(line[lineIndex+1:])
+		#print("Value",value,line)
+		if type(value)==Error:
+			return value
+		symbols.set(name,value)
 	def assess(self,line):
+		#print(line)
 		node= self.noderize(line)
 		output = self.evaluate(node)
+		if type(output)==Error:
+			return output
 		if output:
 			return output.value
 	def evaluate(self,node):
+		if type(node)==Error:
+			return node
 		if type(node)==Call:
 			if not node.func in BUILTIN.symbols.keys():
 				return Error("Name Error","Unidentified Name:  "+node.func)
 
 			return BUILTIN.get(node.func)(node.params)
+		
 		if type(node)==Token:
+			if node.type==TT_IDENTIFIER:
+				#print(node.value)
+				#print(self.subcontext.symbols)
+				return tokenize(self.subcontext.get(node.value))
 			return node
 		if type(node)==BinOp:
 			#print(node)
 			a = self.evaluate(node.a)
 			b= self.evaluate(node.b)
 			op = node.op
+			if type(a)==Error:
+				return a
+			if type(b)==Error:
+				return b
+			if type(op)==Error:
+				return c
 			#print("\nBinOP")
 			#print(a,b,op)
 			invalid = Error("Invalid Operation","Cannot Evaluate " + a.type + " & " + b.type)
@@ -423,12 +480,14 @@ class Executor:
 					if ind==len(line)-1:
 						return Error("Syntax Error","Expected ')'")
 					if line[ind].type==TT_RPAREN:'''
+		#print('{LINE}',line)
 		if len(line)==1:
 			#print(line,type(line[0]))
 			return line[0]
 		if line[0].type==TT_IDENTIFIER:
 			if line[1].type != TT_LPAREN:
-				return Error("Syntax Error","Expected '(")
+				#return Error("Syntax Error","Expected '(")
+				pass
 			params = []
 			ind=1
 			for i in line[2:]:
@@ -439,6 +498,8 @@ class Executor:
 					else:
 						return BinOp(Call(line[0].value,params),self.noderize(line[ind+2:]),line[ind+1])
 				else:
+					if i.type==TT_IDENTIFIER:
+						i=self.subcontext.get(i.value)
 					params.append(i)
 		#print("LINE",line,)
 		#print("L2 ",self.noderize(line[2:]))
@@ -454,6 +515,8 @@ class Executor:
 			return errors
 		while 1:
 			finish = self.visit()
+			if type(finish)==Error:
+				return finish
 			if finish:
 				break
 	def tape(self):
@@ -492,18 +555,23 @@ class Executor:
 def run(fn,text):
 	lexed = Lexer(fn,text)
 	tokens = lexed.make_tokens()
+	#for i in tokens[0]:
+		#print(type(i))
 	if type(tokens)==Error:
 		print(tokens.toString())
-		return
+		return tokens, None
 	#print(tokens)
 	executor = Executor(tokens[0])
 	e=executor.execute()
-
+	
 	if type(e)==Error:
+		e.note += "\nLine: "  + str(executor.lastline)
 		print(e.toString())
-		return
+		return e, None
 	#print(TAPE.data)
 	#print(fn)
+	return None, None
 if __name__=="__main__":
-	run("helloworld.mol",open("helloworld.mol",'r').read())
+	#run("helloworld.mol",open("helloworld.mol",'r').read())
+	run("<Test>",open("Programs/test.mol",'r').read())
 	#print(open("helloworld.mol",'r').read())

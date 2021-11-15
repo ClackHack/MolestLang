@@ -1,2 +1,2 @@
 # MolestLang
- Esoteric Programming Language
+ Tape Based Esoteric Language
