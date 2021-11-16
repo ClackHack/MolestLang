@@ -1,0 +1,8 @@
+instruct 1;
+print "Test";
+close;
+instruct 0;
+mova instruct 1;
+run;
+finish;
+close;

@@ -2,7 +2,7 @@ import random
 #from typing import type_check_only
 
 #LANGUAGE=["data","instruct","close","finish","mov","mova","print"]
-LANGUAGE=["data","instruct","close","finish","mov","mova",'print','let']
+LANGUAGE=["data","instruct","close","finish","mov","mova",'print','let','run']
 TT_INT="TT_INT"
 TT_FLOAT="FLOAT"
 TT_PLUS="PLUS"
@@ -16,7 +16,7 @@ TT_EOF="EOF"
 TT_KEYWORD="KEYWORD"
 TT_IDENTIFIER="IDENTIFIER"
 TT_EQ="EQ"
-KEYWORDS=[LANGUAGE[0],"and","or","not", "if","then", LANGUAGE[1],"end",LANGUAGE[2],LANGUAGE[3],LANGUAGE[6],LANGUAGE[4],LANGUAGE[5],LANGUAGE[7]]
+KEYWORDS=[LANGUAGE[0],"and","or","not", "if","then", LANGUAGE[1],"end",LANGUAGE[2],LANGUAGE[3],LANGUAGE[6],LANGUAGE[4],LANGUAGE[5],LANGUAGE[7],LANGUAGE[8]]
 TT_POW="POW"
 TT_EE = "EE"
 TT_NE="NE"
@@ -269,7 +269,7 @@ def taperead(params):
 		elif i.type==TT_RSQUARE:
 			pass
 		else:
-			#print("Read",i,type(i))
+			#print("Read",i,type(i),i.type)
 			return i
 def tapewrite(params):
 	#print("Write Called")
@@ -308,11 +308,13 @@ class Call:
 class Executor:
 	def __init__(self,tokens):
 		self.tokens=tokens
-		self.subcontext=SymbolTable(BUILTIN)
+		self.subcontext=[]
 		self.lastline = []
 	def visit(self):
 		#print(TAPE.index)
-		self.subcontext=tapesymbols = SymbolTable(BUILTIN)
+		#self.subcontext=[]
+		tapesymbols = SymbolTable(BUILTIN)
+		self.subcontext.append(tapesymbols)
 		nodes=Noderize(TAPE.get())
 		#print("\nNODE TOKENS",nodes.tokens, TAPE.index,TAPE.pointer)
 		nodes.createLines()
@@ -334,10 +336,14 @@ class Executor:
 				o=self.print(i,lineIndex)
 			elif i[0].type==TT_KEYWORD and i[0].value==LANGUAGE[7]:
 				o=self.assign(i,lineIndex,tapesymbols)
+			elif i[0].type==TT_KEYWORD and i[0].value==LANGUAGE[8]:
+				o=self.visit()
+				#print("Run statement")
 			else:
 				o=self.assess(i)
 			if type(o)==Error:
 				return o
+		self.subcontext.pop()
 		return False
 
 	def move(self,line,lineIndex):
@@ -375,6 +381,7 @@ class Executor:
 		out=self.assess(line[lineIndex:])
 		if type(out)==Error:
 			return out
+		#print("TYPE",type(out))
 		print(out,end="")
 	def assign(self,line,lineIndex,symbols):
 		lineIndex+=1
@@ -406,14 +413,14 @@ class Executor:
 		if type(node)==Call:
 			if not node.func in BUILTIN.symbols.keys():
 				return Error("Name Error","Unidentified Name:  "+node.func)
-
+			#print(type(BUILTIN.get(node.func)(node.params)))
 			return BUILTIN.get(node.func)(node.params)
 		
 		if type(node)==Token:
 			if node.type==TT_IDENTIFIER:
 				#print(node.value)
 				#print(self.subcontext.symbols)
-				return tokenize(self.subcontext.get(node.value))
+				return tokenize(self.subcontext[-1].get(node.value))
 			return node
 		if type(node)==BinOp:
 			#print(node)
@@ -480,7 +487,7 @@ class Executor:
 					if ind==len(line)-1:
 						return Error("Syntax Error","Expected ')'")
 					if line[ind].type==TT_RPAREN:'''
-		#print('{LINE}',line)
+		#print('{LINE} ',line)
 		if len(line)==1:
 			#print(line,type(line[0]))
 			return line[0]
@@ -499,7 +506,7 @@ class Executor:
 						return BinOp(Call(line[0].value,params),self.noderize(line[ind+2:]),line[ind+1])
 				else:
 					if i.type==TT_IDENTIFIER:
-						i=self.subcontext.get(i.value)
+						i=tokenize(self.subcontext[-1].get(i.value))
 					params.append(i)
 		#print("LINE",line,)
 		#print("L2 ",self.noderize(line[2:]))

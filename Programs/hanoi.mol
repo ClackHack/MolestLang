@@ -1,0 +1,86 @@
+#Count
+data 0;
+5;
+close;
+
+#From and To - Move
+data 1;
+"a";
+close;
+data 2;
+"b";
+close;
+
+# From Via To
+data 3;
+"a";
+close;
+data 4;
+"b";
+close;
+data 5;
+"c";
+close;
+
+#Move
+instruct 1;
+    print "Move ";
+    mova data 1;
+    print read();
+    mova data 2;
+    print " to ";
+    print read();
+    print "\n";
+    mova data 0;
+    let count = read() > 0;
+    let count = count * 2;
+    mova instruct count;
+close;
+
+#Main
+instruct 0;
+    mova data 0;
+    let count = read();
+    write(count - 1);
+    let temp = count > 0;
+    let temp = temp+2;
+    #print temp;
+    mova instruct temp;
+    run;
+    
+    mova data 3;
+    let from = read();
+    mova data 4;
+    let via = read();
+    mova data 5;
+    let to = read();
+    write(via);
+    mova data 4;
+    write(to);
+    mova instruct 0;
+    run;
+    mova data 1;
+    write(from);
+    mova data 2;
+    write(to);
+    mova instruct 1;
+    run;
+    mova data 3;
+    write(via);
+    mova data 4;
+    write(from);
+    mova data 5;
+    write(to);
+    mova instruct 0;
+    run;
+close;
+
+
+instruct 2;
+finish;
+close;
+
+instruct 3;
+    let temp = "HERE";
+    #print temp;
+close;
